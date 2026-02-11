@@ -1,0 +1,46 @@
+/* THE LALIT INTERNATIONAL SCHOOL - MASTER STYLESHEET */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Poppins:wght@400;600&display=swap');
+
+:root { 
+    --royal-blue: #002366; 
+    --gold: #D4AF37;
+    --cream: #fffbf2;
+    --text: #2d2d2d;
+}
+
+body { 
+    background: #f0f0f0; 
+    font-family: 'Poppins', sans-serif; 
+    margin: 0; padding: 0; 
+    overflow-x: hidden;
+}
+
+/* Sidebar Styling */
+.sidebar { 
+    width: 260px; background: var(--royal-blue); height: 100vh; 
+    position: fixed; left: -300px; top: 0; transition: 0.4s; z-index: 9999;
+    border-right: 3px solid var(--gold);
+}
+
+#menu-check:checked ~ .sidebar { left: 0; }
+
+.main-content { padding: 80px 20px 20px; transition: 0.4s; }
+
+/* Global Components */
+.royal-card { 
+    background: var(--cream); border: 1px solid var(--gold);
+    border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.main-btn {
+    background: var(--royal-blue); color: var(--gold) !important;
+    border: 1px solid var(--gold); padding: 10px 25px;
+    border-radius: 30px; font-weight: 600; cursor: pointer; transition: 0.3s;
+}
+
+.main-btn:hover { background: var(--gold); color: var(--royal-blue) !important; }
+
+input, select {
+    width: 100%; padding: 10px; margin-bottom: 15px;
+    border: 1px solid #ccc; border-radius: 5px;
+}
