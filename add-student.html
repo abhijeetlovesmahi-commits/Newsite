@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Admission - The Lalit Intl.</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="main-content">
+    <div class="container-fluid">
+        <h2 style="font-family: 'Cinzel'; color: var(--royal-blue);" class="mb-4 text-center">Student Admission Portal</h2>
+
+        <div class="royal-card mx-auto" style="max-width: 900px;">
+            <form id="admissionForm">
+                <div class="row">
+                    <div class="col-md-4 text-center border-end">
+                        <div class="mb-3">
+                            <img id="photoPreview" src="https://via.placeholder.com/150x180" class="img-thumbnail mb-2" style="width: 150px; height: 180px; object-fit: cover; border: 2px solid var(--gold);">
+                            <input type="file" id="photoInput" accept="image/*" class="form-control form-control-sm" required>
+                            <small class="text-muted">Upload Passport Size Photo</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-8">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="fw-bold small">Admission Number (Auto)</label>
+                                <input type="text" id="uniqueID" readonly style="background: #eee;">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="fw-bold small">Roll Number</label>
+                                <input type="number" id="rollNo" placeholder="Enter Roll No" required>
+                            </div>
+                            <div class="col-md-12">
+                                <label class="fw-bold small">Full Name of Student</label>
+                                <input type="text" id="stName" placeholder="Enter Student Name" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="fw-bold small">Class</label>
+                                <select id="stClass" required>
+                                    <option value="">Select Class</option>
+                                    <option value="Nursery">Nursery</option>
+                                    <option value="LKG">LKG</option>
+                                    <option value="UKG">UKG</option>
+                                    <script>for(let i=1; i<=12; i++) document.write(`<option value="${i}">${i}</option>`);</script>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="fw-bold small">Section</label>
+                                <select id="stSection">
+                                    <option value="A">A</option>
+                                    <option value="B">B</option>
+                                    <option value="C">C</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4" style="border-top: 2px solid var(--gold);">
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="fw-bold small">Father's Name</label>
+                        <input type="text" id="fName" placeholder="Father's Full Name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="fw-bold small">Mobile Number</label>
+                        <input type="tel" id="mobile" placeholder="10 Digit Number" required pattern="[0-9]{10}">
+                    </div>
+                    <div class="col-md-12">
+                        <label class="fw-bold small">Full Address</label>
+                        <textarea id="address" class="form-control mb-3" rows="2" placeholder="Permanent Address" style="border: 1px solid #ccc;"></textarea>
+                    </div>
+                </div>
+
+                <div class="text-center mt-3">
+                    <button type="submit" class="main-btn w-50" id="submitBtn">CONFIRM ADMISSION</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDqDmsMp2eAuHJBcjW-ciO2JcLTXapiIrs",
+        authDomain: "the-lalit-d7472.firebaseapp.com",
+        projectId: "the-lalit-d7472",
+        appId: "1:479237084229:web:31078825739b3c5712ff2c"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // 1. Auto-Generate Unique ID (Current Year + Random)
+    const year = new Date().getFullYear();
+    document.getElementById('uniqueID').value = "LIS-" + year + "-" + Math.floor(Math.random() * 9000 + 1000);
+
+    // 2. Photo Preview Logic
+    let base64Photo = "";
+    document.getElementById('photoInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            base64Photo = reader.result;
+            document.getElementById('photoPreview').src = reader.result;
+        };
+        if(file) reader.readAsDataURL(file);
+    });
+
+    // 3. Save to Firebase
+    document.getElementById('admissionForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        btn.innerText = "Processing...";
+        btn.disabled = true;
+
+        const data = {
+            uniqueID: document.getElementById('uniqueID').value,
+            rollNo: document.getElementById('rollNo').value,
+            name: document.getElementById('stName').value,
+            class: document.getElementById('stClass').value,
+            section: document.getElementById('stSection').value,
+            father: document.getElementById('fName').value,
+            mobile: document.getElementById('mobile').value,
+            address: document.getElementById('address').value,
+            photo: base64Photo,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        try {
+            await db.collection('students').doc(data.uniqueID).set(data);
+            alert("Admission Successful! ID: " + data.uniqueID);
+            window.location.reload();
+        } catch (error) {
+            alert("Error: " + error.message);
+            btn.innerText = "CONFIRM ADMISSION";
+            btn.disabled = false;
+        }
+    });
+</script>
+<script src="menu.js"></script>
+</body>
+</html>
