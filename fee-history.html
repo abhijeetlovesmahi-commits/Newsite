@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fee History - The Lalit Intl.</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .report-card { 
+            background: white; border-radius: 15px; padding: 25px; 
+            border-top: 5px solid var(--royal-blue); box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        }
+        .total-banner {
+            background: var(--royal-blue); color: var(--gold);
+            padding: 15px; border-radius: 10px; font-weight: 600;
+        }
+        .table thead th { background: #f8f9fa; color: var(--royal-blue); font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+<div class="main-content">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 style="font-family: 'Cinzel'; color: var(--royal-blue); margin:0;">Collection History</h2>
+            <button class="btn btn-outline-dark no-print" onclick="window.print()"><i class="fas fa-print"></i> Export PDF</button>
+        </div>
+
+        <div class="report-card">
+            <div class="row g-3 mb-4 no-print">
+                <div class="col-md-4">
+                    <label class="small fw-bold">Search Name/ID</label>
+                    <input type="text" id="histSearch" placeholder="Type to filter..." class="m-0">
+                </div>
+                <div class="col-md-3">
+                    <label class="small fw-bold">From Date</label>
+                    <input type="date" id="dateFrom" class="m-0">
+                </div>
+                <div class="col-md-3">
+                    <label class="small fw-bold">To Date</label>
+                    <input type="date" id="dateTo" class="m-0">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button class="main-btn w-100 m-0" onclick="loadHistory()">FILTER</button>
+                </div>
+            </div>
+
+            <div class="total-banner d-flex justify-content-between align-items-center mb-3">
+                <span>Total Collection in View:</span>
+                <span id="grandTotal">₹0</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Student ID</th>
+                            <th>Student Name</th>
+                            <th>Month Paid</th>
+                            <th>Mode</th>
+                            <th class="text-end">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody">
+                        <tr><td colspan="6" class="text-center py-5">Loading Imperial Logs...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDqDmsMp2eAuHJBcjW-ciO2JcLTXapiIrs",
+        authDomain: "the-lalit-d7472.firebaseapp.com",
+        projectId: "the-lalit-d7472",
+        appId: "1:479237084229:web:31078825739b3c5712ff2c"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    async function loadHistory() {
+        const tbody = document.getElementById('historyBody');
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-5"><i class="fas fa-spinner fa-spin fa-2x"></i></td></tr>`;
+        
+        let total = 0;
+        try {
+            // Hum saare transactions fetch karenge aur frontend par date filter apply karenge 
+            // taaki complex query ki zaroorat na pade abhi.
+            const snap = await db.collection('fee_transactions').orderBy('timestamp', 'desc').get();
+            tbody.innerHTML = "";
+
+            const dFrom = document.getElementById('dateFrom').value; // YYYY-MM-DD
+            const dTo = document.getElementById('dateTo').value;
+
+            snap.forEach(doc => {
+                const h = doc.data();
+                const rawDate = h.timestamp ? h.timestamp.toDate() : new Date();
+                const formattedDate = rawDate.toLocaleDateString('en-GB'); // DD/MM/YYYY
+                const isoDate = rawDate.toISOString().split('T')[0]; // YYYY-MM-DD for filter comparison
+
+                // Date Filter Logic
+                if(dFrom && isoDate < dFrom) return;
+                if(dTo && isoDate > dTo) return;
+
+                total += Number(h.amount);
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${formattedDate}</td>
+                        <td class="small fw-bold">${h.studentID}</td>
+                        <td>${h.studentName}</td>
+                        <td><span class="badge bg-light text-dark border">${h.month}</span></td>
+                        <td>${h.mode}</td>
+                        <td class="text-end fw-bold text-success">₹${h.amount}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('grandTotal').innerText = "₹" + total.toLocaleString();
+            if(tbody.innerHTML === "") {
+                tbody.innerHTML = "<tr><td colspan="6" class="text-center py-4">No records found for this period.</td></tr>";
+            }
+
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error: ${e.message}</td></tr>`;
+        }
+    }
+
+    // Live Search
+    document.getElementById('histSearch').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('#historyBody tr');
+        rows.forEach(row => {
+            row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none';
+        });
+    });
+
+    window.onload = loadHistory;
+</script>
+<script src="menu.js"></script>
+</body>
+</html>
