@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fee Master - The Lalit Intl.</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .fee-card { border-left: 5px solid var(--royal-blue); margin-bottom: 20px; transition: 0.3s; }
+        .fee-card:hover { transform: scale(1.01); }
+        .class-badge { background: var(--gold); color: var(--royal-blue); font-weight: bold; padding: 5px 15px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="main-content">
+    <div class="container-fluid">
+        <h2 style="font-family: 'Cinzel'; color: var(--royal-blue);" class="mb-4 text-center">Imperial Fee Master</h2>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="royal-card">
+                    <h5 class="mb-3 text-center" style="color: var(--gold);">Define Class Fees</h5>
+                    <form id="feeMasterForm">
+                        <label class="fw-bold small">Select Class</label>
+                        <select id="feeClass" required>
+                            <option value="">Select Class</option>
+                            <option value="Nursery">Nursery</option>
+                            <option value="LKG">LKG</option>
+                            <option value="UKG">UKG</option>
+                            <script>for(let i=1; i<=12; i++) document.write(`<option value="${i}">${i}</option>`);</script>
+                        </select>
+
+                        <label class="fw-bold small">Monthly Tuition Fee</label>
+                        <input type="number" id="monthlyFee" placeholder="₹ Amount" required>
+
+                        <label class="fw-bold small">Admission Fee (One-time)</label>
+                        <input type="number" id="admissionFee" placeholder="₹ Amount" required>
+
+                        <label class="fw-bold small">Exam/Annual Charges</label>
+                        <input type="number" id="annualFee" placeholder="₹ Amount" required>
+
+                        <button type="submit" class="main-btn w-100 mt-2" id="saveFeeBtn">UPDATE STRUCTURE</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="royal-card">
+                    <h5 class="mb-4"><i class="fas fa-list-alt me-2"></i>Current Fee Structure</h5>
+                    <div id="feeList">
+                        <p class="text-center py-5">Fetching imperial records...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDqDmsMp2eAuHJBcjW-ciO2JcLTXapiIrs",
+        authDomain: "the-lalit-d7472.firebaseapp.com",
+        projectId: "the-lalit-d7472",
+        appId: "1:479237084229:web:31078825739b3c5712ff2c"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // 1. Save Fee Logic
+    document.getElementById('feeMasterForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('saveFeeBtn');
+        btn.innerText = "Saving...";
+        btn.disabled = true;
+
+        const feeData = {
+            class: document.getElementById('feeClass').value,
+            monthly: Number(document.getElementById('monthlyFee').value),
+            admission: Number(document.getElementById('admissionFee').value),
+            annual: Number(document.getElementById('annualFee').value),
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        try {
+            await db.collection('fee_master').doc(feeData.class).set(feeData);
+            alert("Fee Structure Updated for Class " + feeData.class);
+            document.getElementById('feeMasterForm').reset();
+            loadFeeStructure();
+        } catch (error) {
+            alert("Error: " + error.message);
+        } finally {
+            btn.innerText = "UPDATE STRUCTURE";
+            btn.disabled = false;
+        }
+    });
+
+    // 2. Load Fee Structure Logic
+    async function loadFeeStructure() {
+        const listDiv = document.getElementById('feeList');
+        try {
+            const snap = await db.collection('fee_master').get();
+            listDiv.innerHTML = "";
+            
+            if(snap.empty) {
+                listDiv.innerHTML = "<p class='text-center'>No fee structure defined yet.</p>";
+                return;
+            }
+
+            snap.forEach(doc => {
+                const f = doc.data();
+                listDiv.innerHTML += `
+                    <div class="card p-3 shadow-sm fee-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="class-badge">Class ${f.class}</span>
+                                <div class="mt-2 small text-muted">
+                                    <span class="me-3"><b>Tuition:</b> ₹${f.monthly}</span>
+                                    <span class="me-3"><b>Admission:</b> ₹${f.admission}</span>
+                                    <span><b>Annual:</b> ₹${f.annual}</span>
+                                </div>
+                            </div>
+                            <button onclick="deleteFee('${f.class}')" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>`;
+            });
+        } catch (error) {
+            listDiv.innerHTML = "<p class='text-danger'>Error loading fees.</p>";
+        }
+    }
+
+    async function deleteFee(className) {
+        if(confirm("Delete fee structure for Class " + className + "?")) {
+            await db.collection('fee_master').doc(className).delete();
+            loadFeeStructure();
+        }
+    }
+
+    window.onload = loadFeeStructure;
+</script>
+<script src="menu.js"></script>
+</body>
+</html>
