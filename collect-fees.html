@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collect Fees - The Lalit Intl.</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .fee-item { background: #fdfbf0; border: 1px dashed var(--gold); padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+        .receipt-preview { border: 2px solid var(--royal-blue); padding: 20px; background: white; display: none; }
+        #studentDisplay { border-left: 4px solid var(--gold); padding-left: 15px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="main-content">
+    <div class="container-fluid">
+        <h2 style="font-family: 'Cinzel'; color: var(--royal-blue);" class="mb-4">Treasury: Collect Fees</h2>
+
+        <div class="row g-4">
+            <div class="col-md-7">
+                <div class="royal-card">
+                    <div class="row g-2 mb-3">
+                        <div class="col-9">
+                            <input type="text" id="searchID" placeholder="Enter Student ID (e.g., LIS-2026-1234)" class="m-0">
+                        </div>
+                        <div class="col-3">
+                            <button class="main-btn w-100 m-0" onclick="searchStudent()">SEARCH</button>
+                        </div>
+                    </div>
+
+                    <div id="studentDisplay" style="display:none;">
+                        <h4 id="displayName" class="mb-0 text-velvet"></h4>
+                        <p class="text-muted small">Class: <span id="displayClass"></span> | Father: <span id="displayFather"></span></p>
+                    </div>
+
+                    <form id="feeCollectionForm" style="display:none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="fw-bold small">Select Month</label>
+                                <select id="feeMonth" required>
+                                    <option value="January">January</option>
+                                    <option value="February">February</option>
+                                    <option value="March">March</option>
+                                    <option value="April">April</option>
+                                    <option value="May">May</option>
+                                    <option value="June">June</option>
+                                    <option value="July">July</option>
+                                    <option value="August">August</option>
+                                    <option value="September">September</option>
+                                    <option value="October">October</option>
+                                    <option value="November">November</option>
+                                    <option value="December">December</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="fw-bold small">Payment Mode</label>
+                                <select id="payMode">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Online/UPI">Online/UPI</option>
+                                    <option value="Cheque">Cheque</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="fee-item mt-3">
+                            <div class="d-flex justify-content-between">
+                                <span>Monthly Tuition Fee:</span>
+                                <span class="fw-bold">₹<span id="monthlyAmt">0</span></span>
+                            </div>
+                        </div>
+
+                        <label class="fw-bold small">Other Charges (Fine/Exam/Late)</label>
+                        <input type="number" id="extraAmt" value="0" oninput="calculateTotal()">
+
+                        <div class="alert alert-dark d-flex justify-content-between align-items-center mt-3">
+                            <h5 class="m-0">TOTAL PAYABLE:</h5>
+                            <h5 class="m-0">₹<span id="totalPayable">0</span></h5>
+                        </div>
+
+                        <button type="submit" class="main-btn w-100 mt-2" id="payBtn">PROCESS PAYMENT & PRINT</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-5">
+                <div id="receiptArea" class="receipt-preview text-center">
+                    <img src="logo.png" width="60">
+                    <h5 style="font-family:'Cinzel'">THE LALIT INT. SCHOOL</h5>
+                    <hr>
+                    <p class="small"><b>Fee Receipt</b></p>
+                    <div class="text-start small">
+                        <p>Receipt No: <span id="rNo"></span><br>Date: <span id="rDate"></span></p>
+                        <p>Student: <span id="rName"></span><br>Class: <span id="rClass"></span></p>
+                        <hr>
+                        <p class="d-flex justify-content-between"><span>Fees for Month:</span> <b id="rMonth"></b></p>
+                        <p class="d-flex justify-content-between"><span>Total Paid:</span> <b id="rTotal"></b></p>
+                        <p>Mode: <span id="rMode"></span></p>
+                    </div>
+                    <hr>
+                    <p class="x-small">This is a computer generated receipt.</p>
+                    <button class="btn btn-sm btn-dark no-print" onclick="window.print()">PRINT NOW</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDqDmsMp2eAuHJBcjW-ciO2JcLTXapiIrs",
+        authDomain: "the-lalit-d7472.firebaseapp.com",
+        projectId: "the-lalit-d7472",
+        appId: "1:479237084229:web:31078825739b3c5712ff2c"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let currentStudent = null;
+
+    async function searchStudent() {
+        const id = document.getElementById('searchID').value.trim();
+        if(!id) return alert("Enter Student ID!");
+
+        try {
+            const doc = await db.collection('students').doc(id).get();
+            if(!doc.exists) return alert("Student not found!");
+
+            currentStudent = doc.data();
+            document.getElementById('studentDisplay').style.display = 'block';
+            document.getElementById('displayName').innerText = currentStudent.name;
+            document.getElementById('displayClass').innerText = currentStudent.class;
+            document.getElementById('displayFather').innerText = currentStudent.father;
+
+            // Fetch Fees for this Class
+            const feeDoc = await db.collection('fee_master').doc(currentStudent.class).get();
+            if(feeDoc.exists) {
+                const feeData = feeDoc.data();
+                document.getElementById('monthlyAmt').innerText = feeData.monthly;
+                calculateTotal();
+                document.getElementById('feeCollectionForm').style.display = 'block';
+            } else {
+                alert("Fee structure not set for Class " + currentStudent.class);
+            }
+        } catch (e) { alert(e.message); }
+    }
+
+    function calculateTotal() {
+        const monthly = Number(document.getElementById('monthlyAmt').innerText);
+        const extra = Number(document.getElementById('extraAmt').value);
+        document.getElementById('totalPayable').innerText = monthly + extra;
+    }
+
+    document.getElementById('feeCollectionForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('payBtn');
+        btn.disabled = true; btn.innerText = "Processing Treasury...";
+
+        const amount = Number(document.getElementById('totalPayable').innerText);
+        const month = document.getElementById('feeMonth').value;
+        const transaction = {
+            studentID: currentStudent.uniqueID,
+            studentName: currentStudent.name,
+            class: currentStudent.class,
+            amount: amount,
+            month: month,
+            mode: document.getElementById('payMode').value,
+            date: new Date().toLocaleDateString('en-GB'),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        try {
+            const res = await db.collection('fee_transactions').add(transaction);
+            
+            // Fill Receipt
+            document.getElementById('receiptArea').style.display = 'block';
+            document.getElementById('rNo').innerText = res.id.substring(0,8).toUpperCase();
+            document.getElementById('rDate').innerText = transaction.date;
+            document.getElementById('rName').innerText = transaction.studentName;
+            document.getElementById('rClass').innerText = transaction.class;
+            document.getElementById('rMonth').innerText = transaction.month;
+            document.getElementById('rTotal').innerText = "₹" + amount;
+            document.getElementById('rMode').innerText = transaction.mode;
+
+            alert("Payment Recorded Successfully!");
+        } catch (e) { alert(e.message); }
+    });
+</script>
+<script src="menu.js"></script>
+</body>
+</html>
