@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defaulters - The Lalit Intl.</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .defaulter-card { border-left: 5px solid #dc3545; background: white; margin-bottom: 10px; }
+        .month-pill { background: #fff5f5; color: #dc3545; border: 1px solid #feb2b2; padding: 2px 10px; border-radius: 15px; font-size: 11px; }
+    </style>
+</head>
+<body>
+
+<div class="main-content">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 style="font-family: 'Cinzel'; color: var(--royal-blue); margin:0;">Fee Defaulters</h2>
+            <button class="btn btn-danger btn-sm" onclick="window.print()"><i class="fas fa-file-pdf"></i> Download List</button>
+        </div>
+
+        <div class="royal-card mb-4">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label class="small fw-bold">Check Status for Month</label>
+                    <select id="checkMonth" class="m-0">
+                        <option value="January">January</option><option value="February">February</option>
+                        <option value="March">March</option><option value="April">April</option>
+                        <option value="May">May</option><option value="June">June</option>
+                        <option value="July">July</option><option value="August">August</option>
+                        <option value="September">September</option><option value="October">October</option>
+                        <option value="November">November</option><option value="December" selected>December</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="small fw-bold">Class (Optional)</label>
+                    <select id="checkClass" class="m-0">
+                        <option value="">All Classes</option>
+                        <script>for(let i=1; i<=12; i++) document.write(`<option value="${i}">${i}</option>`);</script>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button class="main-btn w-100 m-0" onclick="findDefaulters()">SCAN RECORDS</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultArea">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle bg-white rounded shadow-sm">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Student Name</th>
+                            <th>Class</th>
+                            <th>Father's Name</th>
+                            <th>Contact</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="defaulterBody">
+                        <tr><td colspan="6" class="text-center py-5">Select month and click SCAN.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDqDmsMp2eAuHJBcjW-ciO2JcLTXapiIrs",
+        authDomain: "the-lalit-d7472.firebaseapp.com",
+        projectId: "the-lalit-d7472",
+        appId: "1:479237084229:web:31078825739b3c5712ff2c"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    async function findDefaulters() {
+        const month = document.getElementById('checkMonth').value;
+        const cls = document.getElementById('checkClass').value;
+        const tbody = document.getElementById('defaulterBody');
+        
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-5"><i class="fas fa-search fa-spin fa-2x"></i><br>Analyzing Transactions...</td></tr>`;
+
+        try {
+            // 1. Get all students (filtered by class if selected)
+            let stQuery = db.collection('students');
+            if(cls) stQuery = stQuery.where("class", "==", cls);
+            const allStudents = await stQuery.get();
+
+            // 2. Get all payments for the selected month
+            const payments = await db.collection('fee_transactions').where("month", "==", month).get();
+            
+            // 3. Create a list of Student IDs who HAVE PAID
+            const paidIDs = [];
+            payments.forEach(doc => paidIDs.push(doc.data().studentID));
+
+            // 4. Filter out students who HAVE NOT PAID
+            tbody.innerHTML = "";
+            let count = 0;
+
+            allStudents.forEach(doc => {
+                const s = doc.data();
+                if(!paidIDs.includes(s.uniqueID)) {
+                    count++;
+                    tbody.innerHTML += `
+                        <tr class="defaulter-card">
+                            <td class="fw-bold">${s.uniqueID}</td>
+                            <td>${s.name}</td>
+                            <td>${s.class}</td>
+                            <td>${s.father}</td>
+                            <td>${s.mobile || '-'}</td>
+                            <td class="text-center"><span class="month-pill">Unpaid: ${month}</span></td>
+                        </tr>
+                    `;
+                }
+            });
+
+            if(count === 0) {
+                tbody.innerHTML = "<tr><td colspan='6' class='text-center text-success'>Excellent! No defaulters found for this month.</td></tr>";
+            }
+
+        } catch (e) { alert(e.message); }
+    }
+</script>
+<script src="menu.js"></script>
+</body>
+</html>
