@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Registry - The Lalit Intl.</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .registry-card { 
+            background: white; border-radius: 15px; padding: 20px; 
+            border-top: 5px solid var(--royal-blue); box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        }
+        .filter-section {
+            background: #fdfbf0; border: 1px solid var(--gold);
+            padding: 15px; border-radius: 10px; margin-bottom: 20px;
+        }
+        .st-img {
+            width: 45px; height: 45px; border-radius: 50%; 
+            object-fit: cover; border: 2px solid var(--gold);
+        }
+        .table thead th {
+            background: var(--royal-blue); color: var(--gold);
+            font-size: 0.85rem; text-transform: uppercase;
+        }
+        .action-btn { padding: 4px 12px; font-size: 12px; border-radius: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="main-content">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 style="font-family: 'Cinzel'; color: var(--royal-blue); margin:0;">Student Registry</h2>
+            <div class="no-print">
+                <button class="btn btn-outline-dark" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+            </div>
+        </div>
+
+        <div class="registry-card">
+            <div class="filter-section no-print">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <input type="text" id="mSearch" placeholder="Search by Name, ID or Father's Name..." class="m-0">
+                    </div>
+                    <div class="col-md-4">
+                        <select id="mClass" class="m-0" onchange="loadStudents()">
+                            <option value="">All Classes</option>
+                            <option value="Nursery">Nursery</option>
+                            <option value="LKG">LKG</option>
+                            <option value="UKG">UKG</option>
+                            <script>for(let i=1; i<=12; i++) document.write(`<option value="${i}">${i}</option>`);</script>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="main-btn w-100 m-0" onclick="loadStudents()">FETCH</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Photo</th>
+                            <th>Student Info</th>
+                            <th>Class-Sec</th>
+                            <th>Father's Name</th>
+                            <th>Contact</th>
+                            <th class="text-center">Manage</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentBody">
+                        <tr><td colspan="6" class="text-center py-5">Syncing with Imperial Database...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-2 small text-muted">Total Students: <span id="stCount">0</span></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDqDmsMp2eAuHJBcjW-ciO2JcLTXapiIrs",
+        authDomain: "the-lalit-d7472.firebaseapp.com",
+        projectId: "the-lalit-d7472",
+        appId: "1:479237084229:web:31078825739b3c5712ff2c"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    async function loadStudents() {
+        const tbody = document.getElementById('studentBody');
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-5"><i class="fas fa-crown fa-spin fa-2x"></i></td></tr>`;
+        
+        let query = db.collection('students');
+        const cls = document.getElementById('mClass').value;
+        if(cls) query = query.where("class", "==", cls);
+
+        try {
+            const snap = await query.get();
+            tbody.innerHTML = "";
+            document.getElementById('stCount').innerText = snap.size;
+
+            if(snap.empty) {
+                tbody.innerHTML = "<tr><td colspan='6' class='text-center'>No Records Found.</td></tr>";
+                return;
+            }
+
+            snap.forEach(doc => {
+                const s = doc.data();
+                tbody.innerHTML += `
+                    <tr>
+                        <td><img src="${s.photo || 'https://via.placeholder.com/50'}" class="st-img"></td>
+                        <td>
+                            <a href="profile.html?id=${s.uniqueID}" class="fw-bold text-decoration-none" style="color:var(--royal-blue);">${s.name}</a><br>
+                            <small class="text-muted">ID: ${s.uniqueID}</small>
+                        </td>
+                        <td><span class="badge bg-dark">${s.class}-${s.section || 'A'}</span></td>
+                        <td>${s.father}</td>
+                        <td>${s.mobile || '-'}</td>
+                        <td class="text-center">
+                            <a href="profile.html?id=${s.uniqueID}" class="btn btn-outline-primary action-btn me-1">Profile</a>
+                            <a href="collect-fees.html?id=${s.uniqueID}" class="btn btn-outline-success action-btn">Fees</a>
+                        </td>
+                    </tr>
+                `;
+            });
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error: ${e.message}</td></tr>`;
+        }
+    }
+
+    // Live Search Logic
+    document.getElementById('mSearch').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('#studentBody tr');
+        rows.forEach(row => {
+            row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none';
+        });
+    });
+
+    window.onload = loadStudents;
+</script>
+<script src="menu.js"></script>
+</body>
+</html>
